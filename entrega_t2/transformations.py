@@ -24,15 +24,12 @@ def translacao(x, y, prev_transformation=default_matrix):
     t = [[1, 0, 0], [0, 1, 0], [x, y, 1]]
     return matrix_multiply(prev_transformation, t)
 
-def escalonamento(s, prev_transformation=default_matrix, sy=False):
-    if sy != False:
-        e = [[s, 0, 0], [0, sy, 0], [0, 0, 1]]
-        return matrix_multiply(prev_transformation, e)
+def escalonamento(s, prev_transformation=default_matrix):
     e = [[s, 0, 0], [0, s, 0], [0, 0, 1]]
     return matrix_multiply(prev_transformation, e)
 
 def rotacao(anguloDeg, prev_transformation=default_matrix):
-    angulo = math.radians(-anguloDeg)
+    angulo = math.radians(anguloDeg)
     r = [[math.cos(angulo), -math.sin(angulo), 0], 
          [math.sin(angulo), math.cos(angulo), 0], 
          [0, 0, 1]]
@@ -64,22 +61,15 @@ def findCenter(objeto):
     n = len(objeto.pontos)
     return [sumx/n, sumy/n]
 
-def transform(objeto, transformacoes, window):
+def transform(objeto, transformacoes, window, viewport):
     out = default_matrix
     for t in transformacoes:
         if t[0] == "translacao":
-            # descubro novo vetor de translacao relativo ao angulo da tela
-            vector = objects.Ponto(t[1][0], t[1][1])
-            vector = objects.Wireframe([vector], '', '')
-            aux = rotacao(window.angulo)
-            applyTransform(vector, aux)
-            out = translacao(vector.pontos[0].x, vector.pontos[0].y, out)
+            out = translacao(t[1][0], t[1][1], out)
         if t[0] == "escalonamento":
             out = center(objeto, out)
             out = escalonamento(t[1][0], out)
             out = decenter(objeto, out)
-        if t[0] == "escalonamento_total":
-            out = escalonamento(t[1][0], out, t[1][1])
         if t[0] == "rotacao":
             if t[1][0] == "1":
                 out = center(objeto, out)
@@ -92,31 +82,8 @@ def transform(objeto, transformacoes, window):
                 out = rotacao(t[1][1], out)
                 out = translacao(t[1][2], t[1][3], out)
 
+
     applyTransform(objeto, out)
-    if objeto.nome == 'window':
-        objeto.findNormalizingMatrix()
-        objeto.normalizeAll()
-    else:
-        index = window.objetos.index(objeto)
-        window.normalizeObject(index)
-    window.viewport.delete('all')
+    viewport.delete('all')
     window.updateObjects()
-
-def getTransformMatrix(transformacoes):
-    out = default_matrix
-    for t in transformacoes:
-        if t[0] == "translacao":
-            out = translacao(t[1][0], t[1][1], out)
-        if t[0] == "escalonamento_total":
-            out = escalonamento(t[1][0], out, t[1][1])
-        if t[0] == "rotacao":
-            if t[1][0] == "0":
-                out = rotacao(t[1][1], out)
-            else:
-                out = translacao(-t[1][2], -t[1][3], out)
-                out = rotacao(t[1][1], out)
-                out = translacao(t[1][2], t[1][3], out)
-
-    
-    return out
 
