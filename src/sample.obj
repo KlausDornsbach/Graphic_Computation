@@ -1,0 +1,40 @@
+v 0.0 0.0 0.0
+v 1.0 1.0 0.0
+v 50.0 50.0 0.0
+v -10.0 0.0 0.0
+v 10.0 0.0 0.0
+v -10.0 20.0 0.0
+v 10.0 20.0 0.0
+v 0.0 0.0 0.0
+v 600.0 400.0 0.0
+# square
+v 30.0 30.0 0.0
+v -30.0 30.0 0.0
+v -30.0 -30.0 0.0
+v 30.0 -30.0 0.0
+# TENTANDO REPRODUZIR O ERRO QUE O ED COMENTOU #
+# quadrado entre 100 e 200
+v 100.0 100.0 0.0
+v 100.0 200.0 0.0
+v 200.0 200.0 0.0
+v 200.0 100.0 0.0
+mtllib sample.mtl
+o window
+w 8 9
+o meu_ponto
+usemtl red
+p 1
+o minha_linha
+usemtl red
+l 2 3
+o meu_poligono
+usemtl texture
+l 4 5 6 7 4
+# o triangulo
+# usemtl texture
+# f 4 5 6
+o quadrado
+usemtl red
+l 10 11 12 13
+o quadrado_erro
+f 14 15 16 17

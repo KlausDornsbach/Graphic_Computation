@@ -5,6 +5,7 @@ import objects
 import transformations
 import copy
 import obj_converter
+import os
 
 # janela principal
 class App(tk.Frame):
@@ -12,17 +13,13 @@ class App(tk.Frame):
         super().__init__()
         # instanciamos lista de transformacoes
         self.transformations = []
-        # definimos viewport e window
+        # definimos viewport e window 
         self.viewport = window_viewport.Viewport(self.master, 600, 400)
-        self.window = window_viewport.Window(self.viewport.xVmin - float(self.viewport.xVmax/2),
-            self.viewport.yVmin - float(self.viewport.yVmax/2), 
-            self.viewport.xVmax - float(self.viewport.xVmax/2), 
-            self.viewport.yVmax - float(self.viewport.yVmax/2), 
-            self.viewport)
+        self.window = window_viewport.Window(self.viewport)
         # inicializa GUI
         self.obj_converter = obj_converter.DescritorOBJ() 
+        self.object_file = os.path.abspath(os.getcwd())+'/src/sample.obj'
         self.initUI()
-        self.object_file = 'obj_src/sample.obj'
 
     def initUI(self):
         self.master.title('window com viewport')
@@ -30,23 +27,36 @@ class App(tk.Frame):
         # viewport é o canvas, adiciono ao GUI
         self.viewport.grid(column=2, padx=3, pady=1)
 
-        # retas cartesianas
-        ponto1 = objects.Ponto(-10000, 0)
-        ponto2 = objects.Ponto(10000, 0)
-        ponto3 = objects.Ponto(0, -10000)
-        ponto4 = objects.Ponto(0, 10000)
-        reta1 = objects.Wireframe([ponto1, ponto2], 'x', 'reta', 'red')
-        reta2 = objects.Wireframe([ponto3, ponto4], 'y', 'reta', 'blue')
+        # eixos cartesianos
+        x_axis = objects.Reta3D(objects.Ponto3D(-100, 0, 0), objects.Ponto3D(100, 0, 0), nome='x', cor='red')
+        y_axis = objects.Reta3D(objects.Ponto3D(0, -100, 0), objects.Ponto3D(0, 100, 0), nome='y', cor='blue')
+        z_axis = objects.Reta3D(objects.Ponto3D(0, 0, -100), objects.Ponto3D(0, 0, 100), nome='x', cor='green')
 
-        self.window.objetos.append(reta1)
-        self.window.objetos.append(reta2)
+        self.window.objetos.append(x_axis)
+        self.window.objetos.append(y_axis)
+        self.window.objetos.append(z_axis)
 
-        self.window.createObjectNormalized(reta1)
-        self.window.createObjectNormalized(reta2)
-        # TENHO DE normalizar retas ^
+        x_axis_n = self.window.createObjectNormalized(x_axis)
+        y_axis_n = self.window.createObjectNormalized(y_axis)
+        z_axis_n = self.window.createObjectNormalized(z_axis)
 
-        reta1.drawObjectNormalized(self.window)
-        reta2.drawObjectNormalized(self.window)
+        self.window.clipper.clip(x_axis_n, self.window)
+        self.window.clipper.clip(y_axis_n, self.window)
+        self.window.clipper.clip(z_axis_n, self.window)
+        
+        x_axis_n.drawObjectNormalized(self.window)
+        y_axis_n.drawObjectNormalized(self.window)
+        z_axis_n.drawObjectNormalized(self.window)
+
+        # clipping limits
+        c1 = objects.Ponto(self.window.margin, self.window.margin)
+        c2 = objects.Ponto(self.viewport.xVmax - self.window.margin, self.window.margin)
+        c3 = objects.Ponto(self.viewport.xVmax - self.window.margin, self.viewport.yVmax - self.window.margin)
+        c4 = objects.Ponto(self.window.margin, self.viewport.yVmax - self.window.margin)
+        
+        limits = objects.Wireframe([c1, c2, c3, c4], 'clipping limits', 'wireframe', 'red', fechado=True)
+        self.window.hud_objects.append(limits)
+        limits.drawConstant(self.viewport)
 
         under_canvas_frame = tk.LabelFrame(self.master, height=100)
         under_canvas_frame.grid(row=1, column=2)
@@ -73,78 +83,108 @@ class App(tk.Frame):
                                             command=self.windowChooseTransformation, height=2)
         button_choose_transformations.grid(row=2, column=0, padx=2, pady=2)
 
-        # + 2 pois tem 2 retas no inicio da lista self.window.objetos
+        # + 3 pois tem 3 retas no inicio da lista self.window.objetos
         button_apply_transformations = tk.Button(objects_frame, text='apply\ntransformation', 
-            command=lambda:transformations.transform(self.window.objetos[list_objects.curselection()[0]+2],
-            self.transformations, self.window), height=2)
+                command=lambda:transformations.transform([self.window.objetos[list_objects.curselection()[0]+3]],
+                self.transformations, self.window), height=2)
         button_apply_transformations.grid(row=3, column=0, padx=2, pady=2)
 
         # container window
+        # ok
         window_frame = tk.LabelFrame(menu_frame, text='Window')
         window_frame.grid(row=1, column=0, sticky=tk.W, pady=2)
 
         # step declaration
+        # ok
         step_porcentage = tk.Entry(window_frame, width=4)
         step_porcentage.insert(0, '5')
 
         # move buttons
+        # ok
         button_up = tk.Button(window_frame, text='^', command=lambda: 
-            self.window.moveWindow('up', float(step_porcentage.get())))
+                self.window.moveWindow('up', round(float(step_porcentage.get()), 2)))
         button_up.grid(row=0, column=0, pady=2, columnspan=2)
 
         button_left = tk.Button(window_frame, text='<', command=lambda: 
-            self.window.moveWindow('left', float(step_porcentage.get())))
+                self.window.moveWindow('left', round(float(step_porcentage.get()), 2)))
         button_left.grid(row=1, column=0, pady=2)
 
         button_right = tk.Button(window_frame, text='>', command=lambda: 
-            self.window.moveWindow('right', float(step_porcentage.get())))
+                self.window.moveWindow('right', round(float(step_porcentage.get()), 2)))
         button_right.grid(row=1, column=1, pady=2)
 
         button_down = tk.Button(window_frame, text='v', command=lambda: 
-            self.window.moveWindow('down', float(step_porcentage.get())))
+                self.window.moveWindow('down', round(float(step_porcentage.get()), 2)))
         button_down.grid(row=2, column=0, pady=2, columnspan=2)
+
+        # go forth and back in z axis
+        forth_and_back_frame = tk.LabelFrame(window_frame, text='forth and back')
+        forth_and_back_frame.grid(row=3, column=0, pady=2, rowspan=2, columnspan=2)
+
+        button_forth = tk.Button(forth_and_back_frame, text='^', command=lambda:
+                self.window.moveWindow('forth', round(float(step_porcentage.get()), 2)))
+        button_forth.grid(row=0, column=1, pady=2, columnspan=2)
+
+        button_back = tk.Button(forth_and_back_frame, text='v', command=lambda:
+                self.window.moveWindow('back', round(float(step_porcentage.get()), 2)))
+        button_back.grid(row=1, column=1, pady=2, columnspan=2)
 
         # rotate buttons
         rotate_frame = tk.LabelFrame(menu_frame, text='Rotation')
         rotate_frame.grid(row=2, column=0)
 
+        eixo_rotacao = {'x' : 0,
+                        'y' : 1,
+                        'z' : 2}
+       
+        v_eixo = tk.StringVar(self.master, '2')
+        radio_button_eixo = [0]*3
+        for (text, value) in eixo_rotacao.items():
+            radio_button_eixo[value] = tk.Radiobutton(rotate_frame, text = text, variable=v_eixo,
+                    value=value).grid(row=1, column=value)
+
         rotation_parameter = tk.Entry(rotate_frame, width=4)
-        rotation_parameter.insert(0, '45')
+        rotation_parameter.insert(0, '10')
         rotation_parameter.grid(row=0, column=1, pady=2, padx=4)
 
         button_left = tk.Button(rotate_frame, text='rotate\nwindow', command=lambda: 
-            self.window.rotate(float(rotation_parameter.get())), height=2)
+                self.window.rotate(round(float(rotation_parameter.get()), 2), v_eixo.get()), height=2)
         button_left.grid(row=0, column=0, pady=2, padx=2)
         
         label_deg = tk.Label(rotate_frame, text='°').grid(row=0, column=2, padx=1, pady=2)
+
+        # rotate x axis (look up and down)
+
+        # rotate y axis (look left and right)
 
 
         # step put on grid
         step_porcentage.grid(row=0, column=3, padx=5, pady=5)
         label_z = tk.Label(window_frame, text='%').grid(row=0, column=4, padx=0, pady=0)
 
-        button_in = tk.Button(window_frame, text='in', command=lambda: self.window.zoom('in', float(step_porcentage.get())))
+        button_in = tk.Button(window_frame, text='in', command=lambda: self.window.zoom(
+                'in', round(float(step_porcentage.get()), 2)))
         button_in.grid(row=1, column=3, pady=2, columnspan=2)
 
-        button_out = tk.Button(window_frame, text='out', command=lambda: self.window.zoom('out', float(step_porcentage.get())))
+        button_out = tk.Button(window_frame, text='out', command=lambda: self.window.zoom(
+                'out', round(float(step_porcentage.get()), 2)))
         button_out.grid(row=2, column=3, pady=2, columnspan=2)
 
         # file container
         file_frame = tk.LabelFrame(self.master, text='File')
         file_frame.grid(row=1, column=0)
 
-        button_export = tk.Button(file_frame, text='export', command=lambda: self.toFile(list_objects, 
-                                                                    list_objects.curselection()[0]+2))
+        button_export = tk.Button(file_frame, text='export', command=lambda: 
+                self.windowChooseFile(operation='export'))
         button_export.grid(row=4, column=0, padx=2, pady=2)
 
-        button_import = tk.Button(file_frame, text='import', command=lambda: self.fromFile(list_objects))
+        button_import = tk.Button(file_frame, text='import', command=lambda: 
+                self.windowChooseFile(operation='import'))
         button_import.grid(row=5, column=0, padx=2, pady=2)
 
-        button_choose_file = tk.Button(file_frame, text='choose file', command=lambda: self.windowChooseFile())
-        button_choose_file.grid(row=6, column=0, padx=2, pady=2)
-
         # choose clipping button
-        button_choose_clipping = tk.Button(self.master, text='choose clipping', command=self.windowChooseClipping())
+        button_choose_clipping = tk.Button(self.master, text='choose clipping', command=lambda: 
+                self.windowChooseClipping())
         button_choose_clipping.grid(row=2, column=0, padx=2, pady=2)
 
         
@@ -184,57 +224,86 @@ class App(tk.Frame):
         reta_alt = self.label_frame_define_ponto_alternativo(tab_reta, 'OU (via texto):', 2, 'Pontos')
         wireframe_1 = self.label_frame_define_ponto(tab_wireframe, 'coordenadas ponto', 0)
         wireframe_alt = self.label_frame_define_ponto_alternativo(tab_wireframe, 'OU (via texto):', 3, 'Pontos')
+        curva = self.label_frame_define_ponto_alternativo(tab_curva, 'coordenadas da curva (n pontos multiplo de 4)', 0, 'Pontos')
+        tipo_curva_opcoes = {'Bézier' : 'bezier',
+                    'BSpline': 'spline'}
+        
+        tipo_curva = tk.StringVar(tab_curva, 'spline')
+        tipo_curva_radio_button = [0]*2
+        i = 0
+        for (text, value) in tipo_curva_opcoes.items():
+            tipo_curva_radio_button[i] = tk.Radiobutton(tab_curva, text=text, variable=tipo_curva,
+                value=value).grid(row=1, column=i)
+            i += 1
 
         # botão OK ponto
+        # ok 
         button_ok_ponto = tk.Button(tab_ponto, text="OK", command=lambda: self.window.addObject(
-            [self.window.newPonto(ponto_1[1][0].get(), ponto_1[1][1].get())], 
-            self.list_objects, nome.get(), cor.get(), newWindow))
+                [self.window.newPonto(ponto_1[1][0].get(), ponto_1[1][1].get(), ponto_1[1][2].get())], 
+                self.list_objects, nome.get(), cor.get(), newWindow, tipo_objeto='ponto'))
         button_ok_ponto.grid(row=0, column=6, padx=10, pady=30)
         # botão OK ponto (alternativo)
+        # ok
         button_ok_ponto_alt = tk.Button(tab_ponto, text="OK", command=lambda: self.window.addObject(
                 [self.window.newPonto(self.extractCoordinatesFromText(ponto_alt[1].get())[0][0], 
-                self.extractCoordinatesFromText(ponto_alt[1].get())[0][1])], 
-                self.list_objects, nome.get(), cor.get(), newWindow))
+                self.extractCoordinatesFromText(ponto_alt[1].get())[0][1],
+                self.extractCoordinatesFromText(ponto_alt[1].get())[0][2])], 
+                self.list_objects, nome.get(), cor.get(), newWindow, tipo_objeto='ponto'))
         button_ok_ponto_alt.grid(row=1, column=6, padx=10, pady=30)
         # botão OK reta
+        # ok
         button_ok_reta = tk.Button(tab_reta, text="OK", command=lambda: self.window.addObject(
-                [self.window.newPonto(reta_1[1][0].get(), reta_1[1][1].get()), 
-                self.window.newPonto(reta_2[1][0].get(), reta_2[1][1].get())], 
-                self.list_objects, nome.get(), cor.get(), newWindow))
+                [self.window.newPonto(reta_1[1][0].get(), reta_1[1][1].get(), reta_1[1][2].get()), 
+                self.window.newPonto(reta_2[1][0].get(), reta_2[1][1].get(), reta_2[1][2].get())], 
+                self.list_objects, nome.get(), cor.get(), newWindow, tipo_objeto='reta'))
         button_ok_reta.grid(row=1, column=6, padx=30, pady=30)
         # botão OK reta (alternativo)
+        # ok
         button_ok_reta_alt = tk.Button(tab_reta, text="OK", command=lambda: self.window.addObject([
             self.window.newPonto(
                 self.extractCoordinatesFromText(reta_alt[1].get())[0][0],
+                self.extractCoordinatesFromText(reta_alt[1].get())[0][1],
                 self.extractCoordinatesFromText(reta_alt[1].get())[0][1]),
             self.window.newPonto(
                 self.extractCoordinatesFromText(reta_alt[1].get())[1][0],
-                self.extractCoordinatesFromText(reta_alt[1].get())[1][1])],
-            self.list_objects, nome.get(), cor.get(), newWindow))
+                self.extractCoordinatesFromText(reta_alt[1].get())[1][1],
+                self.extractCoordinatesFromText(reta_alt[1].get())[0][1])],
+            self.list_objects, nome.get(), cor.get(), newWindow, tipo_objeto='reta'))
         button_ok_reta_alt.grid(row=2, column=6, padx=30, pady=30)
         # checkbox fechar wireframe
         fecha = tk.IntVar() # variavel pra saber se é wireframe fechado
-        close_wireframe = tk.Checkbutton(tab_wireframe, text='fechar wireframe: ',variable=fecha, onvalue=1, offvalue=0)
+        close_wireframe = tk.Checkbutton(tab_wireframe, text='close wireframe: ',variable=fecha, onvalue=1, offvalue=0)
         close_wireframe.grid(row=2, column=1, padx=10, pady=10)
+        # fill wireframe
+        fill = tk.IntVar() # fill wireframe
+        fill_wireframe = tk.Checkbutton(tab_wireframe, text='fill wireframe',variable=fill, onvalue=1, offvalue=0)
+        fill_wireframe.grid(row=0, column=1, padx=10, pady=10)
         # botão novo ponto wireframe
         lista_pontos_wireframe = []
         button_new_point_wf = tk.Button(tab_wireframe, text="novo ponto", command=lambda: self.window.addPontoWireframe(
-            lista_pontos_wireframe, wireframe_1[1][0], wireframe_1[1][1], self.window))
+                lista_pontos_wireframe, wireframe_1[1][0], wireframe_1[1][1], wireframe_1[1][2], self.window))
         button_new_point_wf.grid(row=2, column=0, padx=10, pady=10)
         # botao ok wireframe
         button_ok_wireframe = tk.Button(tab_wireframe, text="OK", command=lambda: 
-            self.window.addObject(lista_pontos_wireframe, self.list_objects, 
-            nome.get(), cor.get(), newWindow, fecha.get()))
+                self.window.addObject(lista_pontos_wireframe, self.list_objects, 
+                nome.get(), cor.get(), newWindow, fecha.get(), fill.get(), tipo_objeto='wireframe'))
         button_ok_wireframe.grid(row=2, column=2, padx=30, pady=30)
         # checkbox fechar wireframe (alternativo)
         fecha_alt = tk.IntVar() # variavel pra saber se é wireframe fechado (alternativo)
-        close_wireframe_alt = tk.Checkbutton(tab_wireframe, text='fechar wireframe: ',variable=fecha_alt, onvalue=1, offvalue=0)
+        close_wireframe_alt = tk.Checkbutton(tab_wireframe, text='fechar wireframe: ', variable=fecha_alt, onvalue=1, offvalue=0)
         close_wireframe_alt.grid(row=3, column=1, padx=10, pady=10)
         # botao ok wireframe (alternativo)
         button_ok_wireframe_alt = tk.Button(tab_wireframe, text="OK", command=lambda: 
-            self.window.addObject(self.extractPointsFromText(wireframe_alt[1].get(), cor.get()), 
-            self.list_objects, nome.get(), cor.get(), newWindow, fecha_alt.get()))
+                self.window.addObject(self.extractPointsFromText(wireframe_alt[1].get(), cor.get()), 
+                self.list_objects, nome.get(), cor.get(), newWindow, fecha_alt.get(), fill.get(), tipo_objeto='wireframe'))
         button_ok_wireframe_alt.grid(row=3, column=2, padx=30, pady=30)
+        
+    
+        # botao ok curva
+        button_ok_curva = tk.Button(tab_curva, text='OK', command=lambda:
+                self.window.addObject(self.extractPointsFromText(curva[1].get(), cor.get()),
+                self.list_objects, nome.get(), cor.get(), newWindow, tipo_objeto='curva', curve_type=tipo_curva.get()))
+        button_ok_curva.grid(row=2, column=0, padx=30, pady=30)
 
     # metodo pra facilitar instanciação de elementos graficos para definir pontos
     def label_frame_define_ponto(self, pai, titulo, linha):
@@ -269,7 +338,7 @@ class App(tk.Frame):
         # instantiate popup
         newWindow = tk.Toplevel(self)
         newWindow.title("Choose transformation")
-        newWindow.geometry("400x500+50+10")
+        newWindow.geometry("500x500+50+10")
         # transformations frame
         t_frame = tk.LabelFrame(newWindow, text='transformacoes')
         t_frame.grid(row=0, column=0, columnspan=2, rowspan=2)
@@ -286,13 +355,18 @@ class App(tk.Frame):
         translacao_frame.grid(row=0, column=0, columnspan=2)
         label_x = tk.Label(translacao_frame, text='x:').grid(row=0, column=0, padx=5, pady=5)
         label_y = tk.Label(translacao_frame, text='y:').grid(row=0, column=2, padx=5, pady=5)
+        label_z = tk.Label(translacao_frame, text='z:').grid(row=0, column=4, padx=5, pady=5)
         entry_x = tk.Entry(translacao_frame, width=5)
         entry_x.grid(row=0, column=1, padx=5, pady=5)
         entry_y = tk.Entry(translacao_frame, width=5)
         entry_y.grid(row=0, column=3, padx=5, pady=5)
+        entry_z = tk.Entry(translacao_frame, width=5)
+        entry_z.grid(row=0, column=5, padx=5, pady=5)
         # add translacao
         button_add_translacao = tk.Button(translacao_frame, text='add', command=lambda: self.addTransformation(
-            'translacao', [float(entry_x.get()), float(entry_y.get())], list_transformations, self.transformations))
+                'translacao', [round(float(entry_x.get()), 2), round(float(entry_y.get()), 2), 
+                round(float(entry_z.get()), 2)], 
+                list_transformations, self.transformations))
         button_add_translacao.grid(row=1, column=0, pady=2)
 
         ###########################
@@ -306,7 +380,8 @@ class App(tk.Frame):
         entry_s.grid(row=0, column=1, padx=5, pady=5, columnspan=2)
         # add escalonamento
         button_add_translacao = tk.Button(escalonamento_frame, text='add', command=lambda: self.addTransformation(
-            'escalonamento', [float(entry_s.get())], list_transformations, self.transformations))
+                'escalonamento', [round(float(entry_s.get()), 2)], 
+                list_transformations, self.transformations))
         button_add_translacao.grid(row=1, column=0, pady=2)
 
         #####################
@@ -322,15 +397,30 @@ class App(tk.Frame):
         for (text, value) in tipo_rotacao.items():
             radio_button[value] = tk.Radiobutton(rotacao_frame, text = text, variable=v,
                 value = value).grid(row = value, column = 0, columnspan=2, ipady = 5)
+        
+        eixo_rotacao = {'x' : 0,
+                        'y' : 1,
+                        'z' : 2}
+        eixo_frame = tk.LabelFrame(rotacao_frame, text='eixo')
+        eixo_frame.grid(row=0, column=2, columnspan = 2, rowspan=3)
+        v_eixo = tk.StringVar(self.master, '2')
+        radio_button_eixo = [0]*3
+        for (text, value) in eixo_rotacao.items():
+            radio_button_eixo[value] = tk.Radiobutton(eixo_frame, text = text, variable=v_eixo,
+                    value=value).grid(row=value, column=1)
 
         label_x_arbitrario = tk.Label(rotacao_frame, text='x:').grid(row=4, column=0, padx=5, pady=5)
         label_y_arbitrario = tk.Label(rotacao_frame, text='y:').grid(row=4, column=2, padx=5, pady=5)
+        label_y_arbitrario = tk.Label(rotacao_frame, text='z:').grid(row=4, column=4, padx=5, pady=5)
         entry_x_arbitrario = tk.Entry(rotacao_frame, width=5)
         entry_x_arbitrario.grid(row=4, column=1, padx=5, pady=5)
         entry_y_arbitrario = tk.Entry(rotacao_frame, width=5)
         entry_y_arbitrario.grid(row=4, column=3, padx=5, pady=5)
+        entry_z_arbitrario = tk.Entry(rotacao_frame, width=5)
+        entry_z_arbitrario.grid(row=4, column=5, padx=5, pady=5)
         entry_x_arbitrario.insert(0, '0')
         entry_y_arbitrario.insert(0, '0')
+        entry_z_arbitrario.insert(0, '0')
 
         label_angulo = tk.Label(rotacao_frame, text='angulo:').grid(row=5, columnspan=2, column=1, padx=5, pady=5)
         entry_angulo = tk.Entry(rotacao_frame, width=5)
@@ -338,8 +428,9 @@ class App(tk.Frame):
         # add rotacao
         # if 
         button_add_rotacao = tk.Button(rotacao_frame, text='add', command=lambda: self.addTransformation(
-            'rotacao', [v.get(), float(entry_angulo.get()), float(entry_x_arbitrario.get()), float(entry_y_arbitrario.get())], 
-            list_transformations, self.transformations))
+                'rotacao', [v.get(), round(float(entry_angulo.get()),2), v_eixo.get(), 
+                round(float(entry_x_arbitrario.get()),2), round(float(entry_y_arbitrario.get()), 2), 
+                round(float(entry_z_arbitrario.get()),2)], list_transformations, self.transformations))
         button_add_rotacao.grid(row=5, column=0, pady=2)
 
         # OK 
@@ -347,22 +438,41 @@ class App(tk.Frame):
         button_ok.grid(row=2, column=0, padx=2, pady=2)
         # delete transformation
         del_selected = tk.Button(newWindow, text='delete selected', command=lambda: 
-            self.deleteSelected(list_transformations, list_transformations.curselection()[0]))
+                self.deleteSelected(list_transformations, list_transformations.curselection()[0]))
         del_selected.grid(row=2, column=1, padx=2, pady=2)
         # reset transformation
-        del_all = tk.Button(newWindow, text='reset', command=lambda: self.resetTransformations(list_transformations))
+        del_all = tk.Button(newWindow, text='reset', command=lambda: 
+                self.resetTransformations(list_transformations))
         del_all.grid(row=2, column=2, padx=2, pady=2)
 
-    def windowChooseFile(self):
+    def windowChooseFile(self, operation):
         # instantiate popup
         file_window = tk.Toplevel(self)
         file_window.title("choose file to import/export")
         file_window.geometry("300x100+200+200")
 
-        tk.Label(file_window, text='file name (without .obj)').grid(row=0,column=0)
+        tk.Label(file_window, text='file name').grid(row=0,column=0)
         entry_file_name = tk.Entry(file_window, width=30)
         entry_file_name.grid(row=1, column=0, padx=5, pady=5)
-        
+        if operation == 'import':
+            button_ok = tk.Button(file_window, text='OK', command=lambda: 
+                    self.importFile(entry_file_name.get(), file_window))
+        elif operation == 'export':
+            button_ok = tk.Button(file_window, text='OK', command=lambda: 
+                    self.exportFile(entry_file_name.get(), file_window))
+        button_ok.grid(row=2, column=0, padx=2, pady=2)
+    
+    def importFile(self, entry_file_name, new_window_gui):
+        self.changeFile(entry_file_name)
+        self.fromFile(self.list_objects)
+        if new_window_gui != 0:
+            new_window_gui.destroy()
+    
+    def exportFile(self, entry_file_name, new_window_gui):
+        self.changeFile(entry_file_name)
+        self.toFile(self.window.objetos[3::])
+        if new_window_gui != 0:
+            new_window_gui.destroy()
 
     def windowChooseClipping(self):
         # instantiate popup
@@ -371,15 +481,16 @@ class App(tk.Frame):
         clipping_window.geometry("200x100+800+200")
 
         clipping = {'Cohen-Sutherland' : 0,
-                    '-': 1}
+                    'Liang-Barsky': 1}
         
         v = tk.StringVar(clipping_window, "0")
         radio_button = [0]*3
         for (text, value) in clipping.items():
             radio_button[value] = tk.Radiobutton(clipping_window, text = text, variable=v,
-                value = value).grid(row = value, column = 0, columnspan=2, ipady = 5)
+                    value = value).grid(row = value, column = 0, columnspan=2, ipady = 5)
 
-        button_ok = tk.Button(clipping_window, text='OK', command=lambda: self.window.chooseClipping(v.get(), clipping_window))
+        button_ok = tk.Button(clipping_window, text='OK', command=lambda: 
+                self.window.chooseClipping(v.get(), clipping_window))
         button_ok.grid(row=2, column=0, padx=2, pady=2)
 
     ########################################################
@@ -406,22 +517,23 @@ class App(tk.Frame):
         pontos_finais = []
         try:
             for p in pontos_etapa_2:
-                x_y = p.split(',') # fica ['x','y']
-                x = float(x_y[0])
-                y = float(x_y[1])
+                x_y_z = p.split(',') # fica ['x','y']
+                x = round(float(x_y_z[0]),2)
+                y = round(float(x_y_z[1]), 2)
+                z = round(float(x_y_z[2]), 2)
 
-                p = objects.Ponto(x, y)
+                p = objects.Ponto3D(x, y, z)
 
                 pontos_finais.append(p)
 
             return pontos_finais
         except ValueError:
             print("NaN")
-    
+
     def addTransformation(self, transform, specs, gui_list, transform_list):
         transform_list.append([transform, specs])
         gui_list.insert(tk.END, transform)
-    
+
     def resetTransformations(self, gui_list):
         self.transformations = []
         gui_list.delete(0, tk.END)
@@ -430,23 +542,32 @@ class App(tk.Frame):
         self.transformations.pop(index)
         gui_list.delete(index)
     
-    def toFile(self, list_objects_gui_component_index): # export
+    def toFile(self, list_objects): # export
         try:
-            self.obj_converter.wireframeToFile(self.object_file, self.window.object_file, list_objects_gui_component_index)
-        except FileNotFoundError:
-            print("file not found :/")
-            print(self.object_file)
-
+            self.obj_converter.wireframeToFile(self.window, list_objects, self.object_file)
+        except FileNotFoundError as e:
+            print(e)
 
     def fromFile(self, list_objects_gui_component): # import
         try:
-            self.obj_converter.fileToWireframe(self.object_file, self.window, list_objects_gui_component)
-        except FileNotFoundError:
-            print("file not found :/")
             print(self.object_file)
+            self.obj_converter.fileToWireframe(self.window, list_objects_gui_component, self.object_file)
+        except FileNotFoundError as e:
+            print(self.object_file)
+            print(e)
 
     def changeFile(self, file):
         if file == '':
             return
-        self.object_file = 'src/' + file + '.obj'
+        self.object_file = file
+
+    # def changeFileToImport(self, file):
+    #     if file == '':
+    #         return
+    #     self.object_file = 'src/' + file + '.obj'
+
+    # def changeFileToExport(self, file):
+    #     if file == '':
+    #         return
+    #     self.object_file = 'out/' + file + '.obj'
 
